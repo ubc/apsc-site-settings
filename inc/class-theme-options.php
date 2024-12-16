@@ -361,7 +361,7 @@ class Theme_Options {
 			'use-open-sans'          => false,
 			'use-lora'               => false,
 			'hide-clf-address-bar'   => false,
-			'apsc-design-system-url' => 'https://apsc-design-system.netlify.app/design-system.min.css',
+			'apsc-design-system-url' => 'https://apsc-design-system.netlify.app/apsc-base.min.css',
 		);
 
 		$options = array_merge( $options, $defaults );
