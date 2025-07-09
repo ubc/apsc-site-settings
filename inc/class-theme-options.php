@@ -152,8 +152,11 @@ class Theme_Options {
 		// So we run on updated_option which means it's only adjusted when the theme options are saved.
 		add_action( 'updated_option', array( $this, 'updated_option__set_colour_options' ), 15, 3 );
 
+		/**
+		** Disabling feature to set "Is your unit part of a faculty" to "yes" after hitting save
+		**/
 		// Also set the 'Is your unit part of a faculty' setting.
-		add_action( 'updated_option', array( $this, 'updated_option__set_is_faculty' ), 15, 3 );
+		//add_action( 'updated_option', array( $this, 'updated_option__set_is_faculty' ), 15, 3 );
 
 		// And set the clf-unit-faculty setting to be 'applied_science'.
 		add_action( 'updated_option', array( $this, 'updated_option__set_clf_unit_faculty' ), 15, 3 );
