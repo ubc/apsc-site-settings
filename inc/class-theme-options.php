@@ -152,9 +152,6 @@ class Theme_Options {
 		// So we run on updated_option which means it's only adjusted when the theme options are saved.
 		add_action( 'updated_option', array( $this, 'updated_option__set_colour_options' ), 15, 3 );
 
-		/**
-		** Disabling feature to set "Is your unit part of a faculty" to "yes" after hitting save
-		**/
 		// Also set the 'Is your unit part of a faculty' setting.
 		//add_action( 'updated_option', array( $this, 'updated_option__set_is_faculty' ), 15, 3 );
 
@@ -164,6 +161,12 @@ class Theme_Options {
 		// Load the google fonts if the options are selected.
 		add_action( 'wp_enqueue_scripts', array( $this, 'wp_enqueue_scripts__load_google_fonts' ) );
 
+		// Load the apsc custom colours selection.
+		add_action( 'admin_enqueue_scripts', array( $this, 'wp_enqueue_scripts__load_apsc_custom_colours_admin_ui' ) );
+		
+		// Ajax callback for providing the colour palette to front end JS
+		add_action( 'wp_ajax_ajax_callback_get_unit_colours', array( $this, 'ajax_callback_get_unit_colours' ) );
+	
 		// Add the preconnect to the enqueued google fonts if we're using them.
 		add_filter( 'style_loader_tag', array( $this, 'style_loader_tag__add_preconnect' ), 10, 2 );
 
@@ -227,6 +230,15 @@ class Theme_Options {
 			'apsc-design-system-url',
 			'APSC Design System URL',
 			array( $this, 'apsc_design_system_url_field' ),
+			'theme_options',
+			'apsc-theme-options'
+		);
+		
+		// Register a new text field for APSC custom colour palettes.
+		add_settings_field(
+			'apsc-custom-colours',
+			'Define custom colours<p>&emsp;Primary colour</p><p>&emsp;Secondary colour</p><p>&emsp;Tertiary colour</p>',
+			array( $this, 'apsc_design_system_colour_fields' ),
 			'theme_options',
 			'apsc-theme-options'
 		);
@@ -326,8 +338,38 @@ class Theme_Options {
 		</div>
 		<div id="apsc-design-system-url-box">
 			<?php \UBC_Collab_Theme_Options::text( 'apsc-design-system-url', 'APSC Design System URL' ); ?>
-		</div>
+		</div> 
 		<?php
+	}
+	
+	/**
+	 * The text field for the APSC custom colour set.
+	 *
+	 * @since 1.1.0
+	 * @return void
+	 */
+	public function apsc_design_system_colour_fields() {
+		?>
+		<div class="explanation"><a href="#" class="explanation-help">Info</a>
+			<div><p>Custom colours for the APSC unit.</p></div>
+		</div>
+		<div id="apsc-design-system-custom-colours-box">
+		<?php 
+			\UBC_Collab_Theme_Options::checkbox( 'apsc-custom-unit-colours', 1, 'Set custom colours' );
+			?>
+			<div id="apsc-custom-unit-colour-palettes">
+			<?php
+				// Display the colour pickers for primary, secondary, and tertiary colours.
+				\UBC_Collab_Theme_Options::color_picker( 'apsc-custom-unit-colour-primary' );
+				\UBC_Collab_Theme_Options::color_picker( 'apsc-custom-unit-colour-secondary' );
+				\UBC_Collab_Theme_Options::color_picker( 'apsc-custom-unit-colour-tertiary' );
+			// offer the option to reset to the current unit colours (AJAX call)
+			?>
+			<div class="wp-block-button button is-style-apsc-default"><a href='#' id="apsc-custom-unit-colour-reset" class="wp-block-button__link wp-element-button">Reset to current unit colours</a></div>
+			</div>
+		</div> 
+		<?php  
+		
 	}
 
 	/**
@@ -365,6 +407,10 @@ class Theme_Options {
 			'use-lora'               => false,
 			'hide-clf-address-bar'   => false,
 			'apsc-design-system-url' => 'https://apsc-design-system.netlify.app/apsc-base.min.css',
+			'apsc-custom-unit-colours'   => false,
+			'apsc-custom-unit-colour-primary' => '#002145',
+			'apsc-custom-unit-colour-secondary' => '#0055B7',
+			'apsc-custom-unit-colour-tertiary' => '#40B4E5',
 		);
 
 		$options = array_merge( $options, $defaults );
@@ -390,6 +436,10 @@ class Theme_Options {
 		$defaults['use-lora']               = (bool) $input['use-lora'];
 		$defaults['hide-clf-address-bar']   = (bool) $input['hide-clf-address-bar'];
 		$defaults['apsc-design-system-url'] = esc_url( $input['apsc-design-system-url'] );
+		$defaults['apsc-custom-unit-colours'] = (bool) $input['apsc-custom-unit-colours'];
+		$defaults['apsc-custom-unit-colour-primary'] = $input['apsc-custom-unit-colour-primary'];
+		$defaults['apsc-custom-unit-colour-secondary'] = $input['apsc-custom-unit-colour-secondary'];
+		$defaults['apsc-custom-unit-colour-tertiary'] = $input['apsc-custom-unit-colour-tertiary'];
 
 		$output = array_merge( $output, $defaults );
 
@@ -411,25 +461,41 @@ class Theme_Options {
 			return;
 		}
 
-		$selected_unit = sanitize_text_field( \UBC_Collab_Theme_Options::get( 'apsc-unit' ) );
-
-		// OK, so we're saving theme options. So we need to set the 'default-colour' option to be
-		// the appropriate colour for the selected unit.
-		$palette_key = $this->get_palette_key_from_unit( $selected_unit );
-
-		$unit_palette = $this->{$palette_key};
-
-		$primary_colour = $unit_palette[0]['color'];
+		$custom_colours_selected = \UBC_Collab_Theme_Options::get( 'apsc-custom-unit-colours' );
 
 		$clf_theme_options_key_to_save = 'clf-unit-colour';
+		
+		if($custom_colours_selected) {
+			// update clf-unit-colour field to match the custom primary colour selected in APSC Options
+			$custom_primary_colour = \UBC_Collab_Theme_Options::get( 'apsc-custom-unit-colour-primary' );
+			\UBC_Collab_Theme_Options::update( $clf_theme_options_key_to_save, sanitize_text_field( $custom_primary_colour ) );
+		} else {
+			//reset custom colours to the ones from the palette
+			$selected_unit = sanitize_text_field( \UBC_Collab_Theme_Options::get( 'apsc-unit' ) );
+			
+			// OK, so we're saving theme options. So we need to set the 'default-colour' option to be
+			// the appropriate colour for the selected unit.
+			$palette_key = $this->get_palette_key_from_unit( $selected_unit );
 
-		\UBC_Collab_Theme_Options::update( 'clf-unit-colour', sanitize_text_field( $primary_colour ) );
+			$unit_palette = $this->{$palette_key};
+
+			$primary_colour = $unit_palette[0]['color'];
+			$secondary_colour = $unit_palette[1]['color'];
+			$tertiary_colour = $unit_palette[2]['color'];
+			
+			\UBC_Collab_Theme_Options::update( $clf_theme_options_key_to_save, sanitize_text_field( $primary_colour ) );
+			\UBC_Collab_Theme_Options::update( 'apsc-custom-unit-colour-primary', sanitize_text_field( $primary_colour ) );
+			\UBC_Collab_Theme_Options::update( 'apsc-custom-unit-colour-secondary', sanitize_text_field( $secondary_colour ) );
+			\UBC_Collab_Theme_Options::update( 'apsc-custom-unit-colour-tertiary', sanitize_text_field( $tertiary_colour ) );
+			
+		}
+		
 	}//end updated_option__set_colour_options()
 
 
 	/**
 	 * When the theme options are saved, set the 'Is your unit part of a faculty' setting to be yes.
-	 *
+	 * !-- NOTE: Disabled to allow hiding faculty label, as of July 2025 --
 	 * @param string $option    Name of the updated option.
 	 * @param mixed  $old_value The old option value.
 	 * @param mixed  $value     The new option value.
@@ -443,8 +509,9 @@ class Theme_Options {
 		}
 
 		$clf_theme_options_key_to_save = 'clf-administrative';
-
+		
 		\UBC_Collab_Theme_Options::update( $clf_theme_options_key_to_save, 'yes' );
+		
 	}//end updated_option__set_is_faculty()
 
 
@@ -464,8 +531,9 @@ class Theme_Options {
 		}
 
 		$clf_theme_options_key_to_save = 'clf-unit-faculty';
-
+		
 		\UBC_Collab_Theme_Options::update( $clf_theme_options_key_to_save, 'applied_science' );
+		
 	}//end updated_option__set_clf_unit_faculty()
 
 	/**
@@ -571,7 +639,53 @@ class Theme_Options {
 			return;
 		}
 	}
+	
+	/**
+	 * Load the custom colour selection for APSC options.
+	 *
+	 * @return void
+	 */
+	public function wp_enqueue_scripts__load_apsc_custom_colours_admin_ui() {
+		
+		// include css file
+        wp_enqueue_style('apsc-option-style', plugins_url('/css/apsc-site-settings-admin.css', __FILE__ ));
+		
+		// load colour picker
+		wp_register_script('apsc-option-script', plugins_url('/js/apsc-site-settings-admin.js', __FILE__));
+		wp_enqueue_script('apsc-option-script');
+		
+	   $title_nonce = wp_create_nonce( 'apsc_option_script' );
+	   wp_localize_script(
+		  'apsc-option-script',
+		  'ajax_callback_get_unit_colours_obj',
+		  array(
+			 'ajax_url' => admin_url( 'admin-ajax.php' ),
+			 'nonce'    => $title_nonce,
+		  )
+	   );
+	}
+	/**
+	 * Load the custom colour selection for APSC options.
+	 *
+	 * @return void
+	 */
+	public function ajax_callback_get_unit_colours() {
+		// Check the nonce for security.
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'apsc_option_script' ) ) {
+			wp_send_json_error( 'Invalid nonce.' );
+		}
+		$unit = $_POST['unit'];
+		$palette = $this->get_palette_key_from_unit($unit);
 
+		// Return the palette array dynamically using the property name in $palette
+		if ( property_exists( $this, $palette ) ) {
+			$colour_palette = $this->{$palette};
+			wp_send_json_success( $colour_palette );
+		} else {
+			wp_send_json_error( 'Palette not found.' );
+		}
+		wp_die();
+	}
 
 	/**
 	 * Add the preconnect tag to the style loader.

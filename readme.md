@@ -37,3 +37,20 @@ A text entry field which will be used as the URL to load the APSC Design System.
 Default Value: https://apsc-design-system.netlify.app/design-system.min.css
 
 see `get_design_system_url()` in APSC Blocks plugin for how this logic is detailed.
+
+## Define custom colours
+
+A checkbox and set of colour pickers for primary, secondary, tertiary colours. 
+
+The colour pickers update via an AJAX call when the APSC Unit Selection is updated, or when standard CLF colours are selected (UBC CLF tab). 
+
+When the checkbox is selected, the values from the colour pickers are preserved and require manual input and saving for changes to apply.
+
+The values for the colours are accessible in the CSS with these CSS variables:
+	`--wp--preset--color--apsc-unit-primary`
+	`--wp--preset--color--apsc-unit-secondary`
+	`--wp--preset--color--apsc-unit-tertiary`
+
+Default Values:
+Set custom colours: Unchecked (i.e. footer not hidden)
+Colour pickers: Currently selected unit colour palette

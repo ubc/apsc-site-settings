@@ -268,13 +268,12 @@ class Site_Settings {
 
 	/**
 	 * Modify the theme JSON data by updating the theme's color
-	 * palette to be the appropriate values for each unit within APSC.
+	 * palette to be the appropriate values for each unit within APSC or from the custom colour palettes.
 	 *
 	 * @param object $theme_json The original theme JSON data.
 	 * @return object The modified theme JSON data.
 	 */
 	public function wp_theme_json_data_default__adjust_colour_palette( $theme_json ) {
-
 		// The existing json.
 		$current_json = $theme_json->get_data();
 
@@ -307,16 +306,27 @@ class Site_Settings {
 
 		// Which palette should we keep?
 		$selected_unit = $this->get_selected_unit();
+		
+		// Have custom colours been set?
+		$custom_unit_colours = $this->get_custom_colours();
 
 		// Now convert unit to the correct palette.
 		$unit_palette_key = 'apsc_' . $selected_unit . '_palette';
 
 		// Now grab this from this class's properties.
 		$unit_palette = $this->{$unit_palette_key};
+		
+		// If custom palettes are set, replace palette with custom colours selection
+		if(is_array($custom_unit_colours) && $custom_unit_colours['apsc-custom-unit-colours']) {
+			foreach($unit_palette as $key => $values) {
+				if(isset($custom_unit_colours[$values['slug']]))
+					$unit_palette[$key]['color'] = $custom_unit_colours[$values['slug']];
+			}
+		}
 
 		// Now merge in the unit's palette.
 		$new_palette = array_merge( $unit_palette, $defaults_to_keep );
-
+		
 		// Set the new palette.
 		$current_json['settings']['color']['palette']['default'] = $new_palette;
 
@@ -394,4 +404,25 @@ class Site_Settings {
 
 		return $selected_unit_from_theme_options;
 	}//end get_selected_unit()
+
+	/**
+	 * Get the custom colours from the theme's APSC options.
+	 *
+	 * @since 1.1.0
+	 * @return array of custom colours.
+	 */
+	private function get_custom_colours() {
+
+		// Ensure the \UBC_Collab_Theme_Options class exists.
+		if ( ! class_exists( '\UBC_Collab_Theme_Options' ) ) {
+			return;
+		}
+
+		$apsc_custom_unit_colours['apsc-custom-unit-colours'] = \UBC_Collab_Theme_Options::get( 'apsc-custom-unit-colours' );
+		$apsc_custom_unit_colours['apsc-unit-primary'] = sanitize_text_field ( \UBC_Collab_Theme_Options::get( 'apsc-custom-unit-colour-primary' ) );
+		$apsc_custom_unit_colours['apsc-unit-secondary'] = sanitize_text_field ( \UBC_Collab_Theme_Options::get( 'apsc-custom-unit-colour-secondary' ) );
+		$apsc_custom_unit_colours['apsc-unit-tertiary'] = sanitize_text_field ( \UBC_Collab_Theme_Options::get( 'apsc-custom-unit-colour-tertiary' ) );
+
+		return $apsc_custom_unit_colours;
+	}//end get_custom_colours()
 }//end class

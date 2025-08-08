@@ -1,0 +1,17 @@
+#apsc-design-system-custom-colours-box .wp-picker-container {
+	display:block;
+	position: relative;
+	clear:both;
+	margin-top: 0.5rem;
+}
+
+#apsc-colours-managed {
+	height: 32px;
+    position: absolute;
+    z-index: 10000;
+    left: -25px;
+    width: 280px;
+    background: rgba(255, 255, 255, 0.95);
+    line-height: 2;
+    font-weight: 600;
+}
