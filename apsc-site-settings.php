@@ -11,7 +11,7 @@
  * Plugin Name:       APSC Site Settings
  * Plugin URI:        https://apsc.ubc.ca
  * Description:       Additional Site Settings and Options for APSC Websites
- * Version:           1.0.0
+ * Version:           1.1.0
  * Requires at least: 5.2
  * Requires PHP:      7.2
  * Author:            Rich Tape
